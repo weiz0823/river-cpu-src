@@ -121,10 +121,10 @@ class MMU extends Component {
   io.ifReq.rdData := io.instBus.rdData
   io.memReq.rdData := io.dataBus.rdData
 
-  iPtw.io.memBus.rdData := io.instBus.rdData
+  iPtw.io.memBus.data := io.instBus.rdData
   iPtw.io.memBus.ack := io.instBus.ack
 
-  dPtw.io.memBus.rdData := io.dataBus.rdData
+  dPtw.io.memBus.data := io.dataBus.rdData
   dPtw.io.memBus.ack := io.dataBus.ack
 
   when(enable) {

@@ -5,6 +5,7 @@ import spinal.lib.master
 import model.InternalBusBundle
 import model.ExceptBundle
 import core.mmu.TLBOp
+import model.ExceptCode
 
 /** MEM stage.
   */
@@ -39,7 +40,16 @@ class MemoryAccess extends Component {
     io.mem.regWb.valid := ~memRWComp.io.stallReq
   }
 
-  io.except := io.mmuExcept
+  val except = ExceptBundle()
+  except.e := io.ex.memRw.ce & memRWComp.io.misalign
+  except.code := Mux(
+    io.ex.memRw.we,
+    ExceptCode.STORE_MISALIGN,
+    ExceptCode.LOAD_MISALIGN
+  )
+  except.assistVal := io.ex.memRw.addr
+
+  io.except := Mux(except.e, except, io.mmuExcept)
 
   // registers
   val regFlushCurrent = RegInit(False)

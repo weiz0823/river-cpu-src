@@ -33,3 +33,7 @@ for Metals. If Metals 'Import build' failed, try to install bloop first, and run
 [简要设计文档](doc_zh-cn.md)
 
 详细设计文档在`doc/`目录下（未完成）。
+
+## RiverOS
+
+RiverOS可以用来模拟River CPU运行操作系统，只需要指定SBI的bin文件和OS的bin文件，详见[sim.sh](sim.sh)中的示例。

@@ -33,14 +33,14 @@ class ProgramCounter(pcInit: Long) extends Component {
   }
 
   when(!io.ifStall) {
-    regPc := PriorityMux(
+    regPc(31 downto 2) := PriorityMux(
       Array(
-        (regTrapBranch.e, regTrapBranch.addr),
-        (io.trapBranch.e, io.trapBranch.addr),
-        (regBranch.e, regBranch.addr),
-        (io.branch.e, io.branch.addr),
-        (io.branchPredict.take, io.branchPredict.addr),
-        (True, regPc + 4)
+        (regTrapBranch.e, regTrapBranch.addr(31 downto 2)),
+        (io.trapBranch.e, io.trapBranch.addr(31 downto 2)),
+        (regBranch.e, regBranch.addr(31 downto 2)),
+        (io.branch.e, io.branch.addr(31 downto 2)),
+        (io.branchPredict.take, io.branchPredict.addr(31 downto 2)),
+        (True, regPc(31 downto 2) + 1)
       )
     )
   }

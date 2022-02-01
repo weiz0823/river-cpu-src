@@ -66,11 +66,12 @@ class InstructionDecode extends Component {
   io.id.calcType := AluCalcType.DISABLE
   io.id.aluInput.op := AluOp.ADD
   io.id.memRw.addr := 0
-  io.id.memRw.data := 0
+  io.id.memRw.data := io.regFileRd2.data
   io.id.memRw.ce := False
-  io.id.memRw.we := False
-  io.id.memRw.isSignExtend := False
-  io.id.memRw.len := MemRWLength.WORD
+  io.id.memRw.we := opcode(5)
+  io.id.memRw.isSignExtend := ~funct3(2)
+  // io.id.memRw.len := MemRWLength.WORD
+  io.id.memRw.len.assignFromBits(funct3(1 downto 0))
   io.id.csrWrType := CsrWrTypes.NONE
   io.id.pc := io.iF.pc
   io.id.inst := io.iF.inst
@@ -100,6 +101,10 @@ class InstructionDecode extends Component {
   when(~instValid) {
     // illegal instruction
     except.makeIllegalInstruction(io.iF.inst)
+  } elsewhen(~io.iF.instFlush & brDecide.io.branch.e & brDecide.io.branch.addr(1)){
+    except.e := True
+    except.code := ExceptCode.INST_MISALIGN
+    except.assistVal := brDecide.io.branch.addr
   }
 
   switch(opcode) {
@@ -168,19 +173,19 @@ class InstructionDecode extends Component {
       when(opcode(5)) {
         // store
         immGen.io.immType := ImmType.S
-        io.id.memRw.we := True
-        io.id.memRw.data := io.regFileRd2.data
+        // io.id.memRw.we := True
+        // io.id.memRw.data := io.regFileRd2.data
         io.regFileRd2.e := True
         // store cannot be 1--
         when(funct3(2)) { instValid := False }
       }.otherwise {
         // load
         immGen.io.immType := ImmType.I
-        io.id.memRw.we := False
-        io.id.memRw.isSignExtend := ~funct3(2)
+        // io.id.memRw.we := False
+        // io.id.memRw.isSignExtend := ~funct3(2)
         io.id.regWb.e := True
       }
-      io.id.memRw.len.assignFromBits(funct3(1 downto 0))
+      // io.id.memRw.len.assignFromBits(funct3(1 downto 0))
       when(funct3(1 downto 0) === B"2'b11") {
         instValid := False
       }

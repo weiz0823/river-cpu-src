@@ -16,13 +16,10 @@ class PageTableWalker extends Component {
     val ack = out Bool ()
     val fault = out Bool ()
     val tlbReq = master(TLBRequest())
-    val memBus = master(InternalBusBundle())
+    val memBus = master(ReadonlyBusBundle(32 bits))
   }
 
-  io.memBus.be := B"4'b1111"
-  io.memBus.we := False
   io.memBus.stb := False
-  io.memBus.wrData := 0
 
   io.ack := False
   io.fault := False
@@ -32,7 +29,7 @@ class PageTableWalker extends Component {
   val pte = Reg(UInt(32 bits))
 
   val memAck = io.memBus.ack
-  val data = io.memBus.rdData
+  val data = io.memBus.data
 
   def makePteForSuperpage(vpn: UInt, oldPte: UInt): Bits = {
     oldPte(31 downto 20) ## vpn(9 downto 0) ## oldPte(9 downto 0)

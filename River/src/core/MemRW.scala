@@ -14,6 +14,7 @@ class MemRW extends Component {
     val memRdData = out(UInt(32 bits))
     val stallReq = out(Bool())
     val dataBus = master(InternalBusBundle())
+    val misalign = out(Bool())
   }
 
   io.dataBus.we := io.memRw.we
@@ -23,11 +24,13 @@ class MemRW extends Component {
 
   switch(io.memRw.len) {
     is(MemRWLength.WORD) {
+      io.misalign := io.memRw.addr(1) | io.memRw.addr(0)
       io.memRdData := io.dataBus.rdData
       io.dataBus.wrData := io.memRw.data
       io.dataBus.be := B"4'b1111"
     }
     is(MemRWLength.HALF) {
+      io.misalign := io.memRw.addr(0)
       val tmpData = UInt(16 bits)
       val tmpWrData = io.memRw.data(15 downto 0)
       io.dataBus.wrData := 0
@@ -50,6 +53,7 @@ class MemRW extends Component {
       }
     }
     is(MemRWLength.BYTE) {
+      io.misalign := False
       val tmpData = UInt(8 bits)
       val tmpWrData = io.memRw.data(7 downto 0)
       tmpData := io.memRw

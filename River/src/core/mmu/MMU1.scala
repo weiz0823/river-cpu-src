@@ -24,18 +24,21 @@ class MMU1(config: MMU1Config) extends Component {
   }
 
   // could be configured
-  val tlb = new TLB(4, 2)
+  val tlb = new TLB2Way(2)
   val ptw = new PageTableWalker
 
   val enable = io.satp(31) && io.priv =/= PrivilegeEnum.M
   val vpn = io.req.addr(31 downto 12)
   val offset = io.req.addr(11 downto 0)
   val tlbRes = TLBQueryResult()
+  tlb.io.query.e := False
   tlb.io.query.vpn := vpn
   tlbRes.hit := tlb.io.query.hit
-  tlbRes.pte := tlb.io.query.pte
+  tlbRes.pte := tlb.io.query.entry
 
-  tlb.io.req := ptw.io.tlbReq
+  tlb.io.req.vpn := ptw.io.tlbReq.vpn
+  tlb.io.req.op := ptw.io.tlbReq.op
+  tlb.io.req.data := ptw.io.tlbReq.pte.asUInt
   when(io.tlbReqOp =/= TLBOp.NOP) {
     tlb.io.req.op := io.tlbReqOp
   }
@@ -50,10 +53,6 @@ class MMU1(config: MMU1Config) extends Component {
   val regTlbHit = RegInit(False)
   val physAddr = Mux(enable, regTlbAddr, io.req.addr)
   val addrValid = ~enable | regTlbHit
-
-  val addrMisalignCheck = new Area {
-    // TODO
-  }
 
   // user check area
   val isUser = (io.priv === PrivilegeEnum.U)
@@ -91,15 +90,16 @@ class MMU1(config: MMU1Config) extends Component {
 
   io.req.rdData := io.bus.rdData
   io.req.ack := False
-  ptw.io.memBus.rdData := io.bus.rdData
+  ptw.io.memBus.data := io.bus.rdData
   ptw.io.memBus.ack := False
+  io.bus.wrData := io.req.wrData
   when(enable & ~regTlbHit & io.req.stb) {
+    tlb.io.query.e := True
     // page table walker mode
     io.bus.stb := ptw.io.memBus.stb
     io.bus.addr := ptw.io.memBus.addr
-    io.bus.we := ptw.io.memBus.we
-    io.bus.be := ptw.io.memBus.be
-    io.bus.wrData := ptw.io.memBus.wrData
+    io.bus.we := False
+    io.bus.be := B"4'b1111"
     ptw.io.memBus.ack := io.bus.ack
 
     when(tlbRes.hit) {
@@ -116,7 +116,6 @@ class MMU1(config: MMU1Config) extends Component {
     io.bus.addr := physAddr(31 downto 0)
     io.bus.we := io.req.we
     io.bus.be := io.req.be
-    io.bus.wrData := io.req.wrData
     io.req.ack := io.bus.ack
   }
 

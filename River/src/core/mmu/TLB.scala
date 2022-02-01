@@ -2,29 +2,7 @@ package core.mmu
 
 import spinal.core._
 import spinal.lib._
-
-case class InternalPTE() extends Bundle {
-  val ppn = UInt(22 bits)
-  val R = Bool()
-  val W = Bool()
-  val X = Bool()
-  val U = Bool()
-  val G = Bool()
-  // bit V, A, D and field RSW omitted
-}
-
-case class PTE() extends Bundle {
-  val V = Bool()
-  val R = Bool()
-  val W = Bool()
-  val X = Bool()
-  val U = Bool()
-  val G = Bool()
-  val A = Bool()
-  val D = Bool()
-  val rsw = Bits(2 bit)
-  val ppn = UInt(22 bits)
-}
+import model._
 
 object TLBOp extends SpinalEnum {
   val NOP, INSERT, INVALIDATE, INVALIDATE_ALL = newElement()
@@ -59,12 +37,6 @@ case class TLBQuery() extends Bundle with IMasterSlave {
 
 case class TLBQueryResult() extends Bundle {
   val hit = Bool()
-  val pte = InternalPTE()
-}
-
-case class TLBEntry() extends Bundle {
-  val valid = Bool()
-  val vpn = UInt(20 bits)
   val pte = InternalPTE()
 }
 
