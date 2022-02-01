@@ -79,15 +79,6 @@ class MemoryController(config: MemoryMapConfig) extends Component {
     }
   }
 
-  io.instBus.err := False
-  io.dataBus.err := False
-  when(instDev === MemDeviceEnum.INVALID) {
-    io.instBus.err := True
-  }
-  when(dataDev === MemDeviceEnum.INVALID) {
-    io.dataBus.err := True
-  }
-
   // default values
   io.instBus.ack := False
   io.instBus.rdData := io.baseRamBus.rdData

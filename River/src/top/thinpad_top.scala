@@ -38,10 +38,19 @@ class thinpad_top extends Component {
 
   }
 
+  val freeRunClockDomain = ClockDomain(
+    clock = io.clk_50M,
+    frequency = FixedFrequency(50 MHz)
+  )
+  val freeRunClockArea = new ClockingArea(freeRunClockDomain) {
+    // 异步复位，同步释放
+    val defaultReset = RegNext(io.reset_btn)
+  }
+
   val defaultClockDomain =
     ClockDomain(
       clock = io.clk_50M,
-      reset = io.reset_btn,
+      reset = freeRunClockArea.defaultReset,
       frequency = FixedFrequency(50 MHz)
     )
 
@@ -96,8 +105,8 @@ class thinpad_top extends Component {
 
     val cpuCore = new core.CoreTop(coreConfig, csrConfig)
     val memController = new bus.MemoryController(memMapConfig)
-    val baseRamController = new peripheral.SramController(devConfig.sram)
-    val extRamController = new peripheral.SramController(devConfig.sram)
+    val baseRamController = new peripheral.SramController(devConfig.baseRam)
+    val extRamController = new peripheral.SramController(devConfig.extRam)
     val uartController = new peripheral.UartController(devConfig.uart)
     val coreLocalInt = new peripheral.CoreLocalInt
 

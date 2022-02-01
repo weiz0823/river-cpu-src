@@ -1,14 +1,15 @@
 package config
 
 case class DeviceConfig(
-    sram: SramConfig = SramConfig(),
+    baseRam: SramConfig = SramConfig(usePrefetch = false),
+    extRam: SramConfig = SramConfig(usePrefetch = false),
     uart: UartConfig = UartConfig()
 ) {}
 
 case class SramConfig(
-    // ignored, 1 cycle read is impossible
-    rdCycles: Int = 2
+    val usePrefetch: Boolean
 ) {
+  val rdCycles: Int = 2;
   // value ignored
   val wrCycles: Int = 2;
 }

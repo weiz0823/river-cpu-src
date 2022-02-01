@@ -2,6 +2,8 @@ package core
 
 import spinal.core._
 import spinal.lib.slave
+import spinal.sim._
+import spinal.core.sim._
 import model._
 
 /** Register file with one input port and two output ports.
@@ -19,7 +21,10 @@ class RegisterFile extends Component {
     val wbStall = in(Bool())
   }
 
-  val regFile = spinal.core.Vec.fill(32)(RegInit(U(0, 32 bits)))
+  val regFile = spinal.core.Vec.fill(32)(Reg(UInt(32 bits)))/*.simPublic()*/
+  // "a0 is hart id, a1 is dtb address" -- rbl
+  regFile(10).init(0)
+  regFile(11).init(0)
 
   val rd1Shortcut = new RegReadShortcut
   val rd2Shortcut = new RegReadShortcut

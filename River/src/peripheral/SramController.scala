@@ -24,15 +24,20 @@ class SramController(config: SramConfig) extends Component {
   })
   val regWrBusy = RegInit(False)
   regPrefetch.valid.init(False)
+  val regRdBusy = RegInit(False)
 
   // default values
-  io.ctrl.addr := io.bus.addr
+  val prefetchAddr = UInt(20 bits)
+  prefetchAddr := io.bus.addr
+  io.ctrl.addr := (if (config.usePrefetch) prefetchAddr
+                   else io.bus.addr)
   io.ctrl.wrData := io.bus.wrData
   io.ctrl.ben := ~io.bus.be
   io.ctrl.cen := ~io.bus.stb
   io.ctrl.oen := True
   io.ctrl.wen := True
-  io.bus.rdData := regPrefetch.data
+  io.bus.rdData := (if (config.usePrefetch) regPrefetch.data
+                    else io.ctrl.rdData)
   io.bus.ack := False
 
   when(io.bus.stb) {
@@ -43,23 +48,33 @@ class SramController(config: SramConfig) extends Component {
       io.ctrl.wen := ~regWrBusy
       regPrefetch.valid := False
     }.otherwise {
-      // prefetch something anyway
-      io.ctrl.oen := False
-      io.ctrl.ben := B"4'b0000"
-      val prefetchAddr = UInt(20 bits)
-      when(regPrefetch.valid && regPrefetch.addr === io.bus.addr) {
-        // from prefetched
-        io.bus.ack := True
-        // prefetch next
-        prefetchAddr := regPrefetch.addr + 1
-      }.otherwise {
-        io.bus.ack := False
-        prefetchAddr := io.bus.addr
+      if (config.usePrefetch) {
+        // prefetch something anyway
+        io.ctrl.oen := False
+        io.ctrl.ben := B"4'b0000"
+        val prefetchHit = regPrefetch.valid && regPrefetch.addr === io.bus.addr
+        when(prefetchHit) {
+          // from prefetched
+          io.bus.ack := True
+          // prefetch next
+          prefetchAddr := regPrefetch.addr + 1
+          regPrefetch.valid := True
+        }.otherwise {
+          io.bus.ack := False
+          regRdBusy := ~regRdBusy
+          prefetchAddr := io.bus.addr
+          // 1 cycle check + 2 cycles refill when prefetch miss
+          regPrefetch.valid := regRdBusy
+        }
+        io.ctrl.addr := prefetchAddr
+        regPrefetch.addr := prefetchAddr
+        regPrefetch.data := io.ctrl.rdData
+      } else {
+        // 2 cycles read
+        io.ctrl.oen := False
+        regRdBusy := ~regRdBusy
+        io.bus.ack := regRdBusy
       }
-      io.ctrl.addr := prefetchAddr
-      regPrefetch.valid := True
-      regPrefetch.addr := prefetchAddr
-      regPrefetch.data := io.ctrl.rdData
     }
   }
 }

@@ -2,11 +2,14 @@ package core
 
 import spinal.core._
 import model._
+import core.mmu.TLBOp
 
 case class EXBundle() extends Bundle {
   val regWb = RegWriteBackBundle()
   val memRw = MemRWBundle()
   val instFlush = Bool()
+  val pc = UInt(32 bits)
+  val tlbReqOp = TLBOp()
 }
 
 /** Registers EX->MEM stage.

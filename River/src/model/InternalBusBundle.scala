@@ -13,11 +13,10 @@ final case class InternalBusBundle() extends Bundle with IMasterSlave {
   val we = Bool()
   val stb = Bool()
   val ack = Bool()
-  val err = Bool()
 
   override def asMaster(): Unit = {
     out(wrData, addr, be, we, stb)
-    in(rdData, ack, err)
+    in(rdData, ack)
   }
 
   def disable() {

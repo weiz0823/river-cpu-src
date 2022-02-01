@@ -43,6 +43,8 @@ class InstructionExecute extends Component {
 
   io.ex.regWb := io.id.regWb
   io.ex.memRw := io.id.memRw
+  io.ex.pc := io.id.pc
+  io.ex.tlbReqOp := io.id.tlbReqOp
   when(io.id.instFlush) {
     io.ex.regWb.disable()
     io.ex.memRw.disable()

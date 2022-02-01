@@ -8,9 +8,8 @@ object AluCalcType extends SpinalEnum {
 }
 
 object AluOp extends SpinalEnum {
-  val ADD, SLL, SLT, SLTU, XOR, SRL, OR, AND, SUB, SRA, ANDN = newElement();
+  val ADD, SLL, SLT, SLTU, XOR, SRL, OR, AND, SUB, SRA = newElement();
   defaultEncoding = SpinalEnumEncoding("staticEncoding")(
-    // ALU-OP
     ADD -> 0,
     SLL -> 1,
     SLT -> 2,
@@ -20,18 +19,12 @@ object AluOp extends SpinalEnum {
     OR -> 6,
     AND -> 7,
     SUB -> 8,
-    SRA -> 13,
-    ANDN -> 15,
+    SRA -> 13
   )
-}
-
-object AluSel extends SpinalEnum {
-  val ALU, SBU, BCNTU = newElement()
 }
 
 final case class AluInputBundle() extends Bundle {
   val op = AluOp()
-  val sel = AluSel() // select which calculate unit to operate
   val val1 = UInt(32 bits)
   val val2 = UInt(32 bits)
 }

@@ -1,9 +1,5 @@
 package sim
 
-import java.io.DataInputStream
-import java.io.FileInputStream
-import scala.collection.mutable.ArrayBuffer
-
 object IType {
   def apply(opcode: Int, funct3: Int, rd: Int, rs: Int, imm: Int): Long = {
     var result: Long = 0
@@ -106,14 +102,6 @@ class DataProvider {
       dataset = dataset.updated(idx, word)
     }
   }
-
-  override def toString(): String = {
-    val sb = new StringBuilder()
-    for (i <- dataset) {
-      sb.append(s"${i.toHexString}\n")
-    }
-    sb.toString()
-  }
 }
 
 object DataProvider {
@@ -122,23 +110,6 @@ object DataProvider {
     p.baseAddr = baseAddr
     p.dataset = dataset
     p
-  }
-
-  def fromBinary(filename: String, baseAddr: Long): DataProvider = {
-    val f = new DataInputStream(new FileInputStream(filename))
-    val a = new ArrayBuffer[Long]
-    while (f.available() >= 4) {
-      a.append(
-        Integer.toUnsignedLong(
-          f.readUnsignedByte() |
-            f.readUnsignedByte() << 8 |
-            f.readUnsignedByte() << 16 |
-            f.readUnsignedByte() << 24
-        )
-      )
-    }
-    f.close()
-    DataProvider(baseAddr, a.toVector)
   }
 }
 

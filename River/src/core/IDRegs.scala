@@ -4,6 +4,7 @@ import spinal.core._
 import model._
 import core.csr.CsrWrTypes
 import core.csr.PrivilegeEnum
+import core.mmu.TLBOp
 
 case class IDBundle() extends Bundle {
   val calcType = AluCalcType()
@@ -16,6 +17,7 @@ case class IDBundle() extends Bundle {
   val inst = Bits(32 bits)
   val except = ExceptBundle()
   val trapRet = TrapRetBundle()
+  val tlbReqOp = TLBOp()
 }
 
 /** Registers of ID->EX stage.

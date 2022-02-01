@@ -15,12 +15,13 @@ class CsrFile(config: CsrConfig) extends Component {
   val io = new Bundle {
     val csrBus = slave(CsrBusBundle())
     val exStall = in(Bool())
-    val trapE = in(Bool())
+    val exInstFlush = in(Bool())
     val privMode = in(PrivilegeEnum())
 
     val trapCsrs = master(TrapCsrBundle())
     val counterCsrs = master(CounterCsrBundle())
     val scratchCsr = master(CsrRWBundle())
+    val atpCsr = master(CsrRWBundle())
   }
 
   val addrDecode = new CsrAddrDecode
@@ -48,6 +49,7 @@ class CsrFile(config: CsrConfig) extends Component {
   defaultCsrConnection(io.counterCsrs.timeH)
   defaultCsrConnection(io.counterCsrs.instRet)
   defaultCsrConnection(io.counterCsrs.instRetH)
+  defaultCsrConnection(io.atpCsr)
 
   // if set or clear no bits, then ignore write (mostly pure read instruction)
   val wrE = io.csrBus.wrType.mux(
@@ -59,7 +61,7 @@ class CsrFile(config: CsrConfig) extends Component {
   // trapE=1 will invalidate current instruction in EX
   // exStall=1 should not perform any write
   val maskedWrType =
-    Mux(io.exStall | io.trapE, CsrWrTypes.NONE, io.csrBus.wrType)
+    Mux(io.exStall | io.exInstFlush, CsrWrTypes.NONE, io.csrBus.wrType)
   val csrExist = Bool()
   val csrWrOk = ~(wrE & addrDecode.io.readOnly)
   val csrPrivOk = io.privMode.asBits.asUInt >= addrDecode.io.priv.asBits.asUInt
@@ -156,6 +158,10 @@ class CsrFile(config: CsrConfig) extends Component {
       // pmpaddr0--15, not implemented
       io.csrBus.rdData := 0
       csrExist := addrDecode.io.priv === PrivilegeEnum.M
+    }
+    is(0x080) {
+      // satp
+      connectCsr(io.atpCsr)
     }
     default {
       io.csrBus.rdData := 0

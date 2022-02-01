@@ -5,6 +5,7 @@ import spinal.lib.master
 import model._
 import core.csr.CsrWrTypes
 import core.csr.PrivilegeEnum
+import core.mmu.TLBOp
 
 /** Decode instruction.
   */
@@ -20,6 +21,7 @@ class InstructionDecode extends Component {
     val branch = out(BranchBundle())
     val idStall = in(Bool())
     val flushCurrent = in(Bool())
+    val privMode = in(PrivilegeEnum())
   }
 
   val brDecide = new BranchDecide
@@ -63,7 +65,6 @@ class InstructionDecode extends Component {
   io.id.aluInput.val2 := immGen.io.imm
   io.id.calcType := AluCalcType.DISABLE
   io.id.aluInput.op := AluOp.ADD
-  io.id.aluInput.sel := AluSel.ALU
   io.id.memRw.addr := 0
   io.id.memRw.data := 0
   io.id.memRw.ce := False
@@ -76,6 +77,7 @@ class InstructionDecode extends Component {
   io.id.except := Mux(io.iF.except.e, io.iF.except, except)
   io.id.trapRet.e := False
   io.id.trapRet.priv.assignFromBits(funct7(4 downto 3))
+  io.id.tlbReqOp := TLBOp.NOP
 
   // invalidate branch on instruction flush
   val branchPredictIncorrect = (brDecide.io.branch.e ^ io.iF.branchPredict.take)
@@ -112,47 +114,26 @@ class InstructionDecode extends Component {
         // with register
         io.id.aluInput.val2 := io.regFileRd2.data
         io.regFileRd2.e := True
-        when(funct7(2)) {
-          // sb series command
-          io.id.aluInput.sel := AluSel.SBU
-          io.id.aluInput.op.assignFromBits(
-            funct7(5 downto 4) ## funct3(2) ## funct3(0)
+        io.id.aluInput.op.assignFromBits(funct7(5) ## funct3)
+        instValid := funct3
+          .resize(4 bits)
+          .mux(
+            AluOp.ADD.asBits -> (funct7 === M"0-00000"),
+            AluOp.SRL.asBits -> (funct7 === M"0-00000"),
+            default -> (funct7 === 0)
           )
-          instValid := True // just forget about it, we don't check it now
-        }.otherwise {
-          io.id.aluInput.op.assignFromBits(funct7(5) ## funct3)
-          instValid := funct3
-            .resize(4 bits)
-            .mux(
-              AluOp.AND.asBits -> (funct7 === M"0-00000"), // 0100000
-              AluOp.ADD.asBits -> (funct7 === M"0-00000"),
-              AluOp.SRL.asBits -> (funct7 === M"0-00000"),
-              default -> (funct7 === 0)
-            )
-        }
       }.otherwise {
         // with imm
         io.id.aluInput.val2 := immGen.io.imm
-        when(funct3 === AluOp.SRL.asBits(2 downto 0)) { // this is 5
+        when(funct3 === AluOp.SRL.asBits(2 downto 0)) {
           io.id.aluInput.op.assignFromBits(funct7(5) ## funct3)
-        }.elsewhen(
-          funct3 === AluOp.SLL.asBits(
-            2 downto 0
-          ) && funct7 === B"7'b0110000"
-          // we specially handle this case for PCNT
-          // | f7      | rs2   | rs1 | f3  | rd | opcode  | op   |
-          // +---------+-------+-----+-----+----+---------+------+
-          // | 0110000 | 00010 | rs1 | 001 | rd | 0010011 | PCNT |
-        ) {
-          io.id.aluInput.sel := AluSel.BCNTU
-          io.id.aluInput.op.assignFromBits(rs2(3 downto 0).asBits)
         }.otherwise {
           io.id.aluInput.op.assignFromBits(False ## funct3)
         }
         instValid := funct3
           .resize(4 bits)
           .mux(
-            AluOp.SLL.asBits -> (funct7 === 0 || funct7 === B"7'b0110000"),
+            AluOp.SLL.asBits -> (funct7 === 0),
             AluOp.SRL.asBits -> (funct7 === M"0-00000"),
             default -> True
           )
@@ -257,8 +238,6 @@ class InstructionDecode extends Component {
           io.regFileRd1.e := True
         }
       }.otherwise {
-        val priv = PrivilegeEnum()
-        priv.assignFromBits(funct7(4 downto 3))
         switch(funct7(2 downto 0)) {
           is(0) {
             switch(rs2) {
@@ -267,7 +246,7 @@ class InstructionDecode extends Component {
                 instValid :=
                   (io.iF.inst(19 downto 7) === 0) & (funct7 === 0)
                 except.e := True
-                except.code.assignFromBits(B(2, 2 bits) ## priv.asBits)
+                except.code.assignFromBits(B(2, 2 bits) ## io.privMode.asBits)
               }
               is(1) {
                 // ebreak
@@ -290,10 +269,11 @@ class InstructionDecode extends Component {
             }
           }
           is(1) {
-            // sfence.vma, not implemented
-            //instValid :=
-            //  (io.iF.inst(14 downto 7) === 0) & (funct7 === B"7'b0001001")
-            instValid := False
+            // sfence.vma
+            instValid :=
+              (io.iF.inst(14 downto 7) === 0) & (funct7 === B"7'b0001001")
+            // ignore rs1 and rs2, we always invalidate all
+            io.id.tlbReqOp := TLBOp.INVALIDATE_ALL
           }
           default {
             instValid := False

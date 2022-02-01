@@ -3,9 +3,11 @@ package top
 import scala.reflect.io.Directory
 import spinal.core._
 
+import core.mmu._
+
 object TopSpinalConfig extends SpinalConfig {
   override val defaultConfigForClockDomains: ClockDomainConfig =
-    ClockDomainConfig(resetKind = SYNC)
+    ClockDomainConfig(resetKind = ASYNC)
   override val targetDirectory: String = "generated_verilog/River"
   override val headerWithDate: Boolean = true
   // enum define problem

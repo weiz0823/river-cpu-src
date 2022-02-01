@@ -20,8 +20,8 @@ class MemoryTestTop extends Component {
   val memMapConfig = MemoryMapConfig()
 
   val memCtrl = new bus.MemoryController(memMapConfig)
-  val baseRamCtrl = new SramController(devConfig.sram)
-  val extRamCtrl = new SramController(devConfig.sram)
+  val baseRamCtrl = new SramController(devConfig.baseRam)
+  val extRamCtrl = new SramController(devConfig.extRam)
   val uartCtrl = new UartController(devConfig.uart)
 
   memCtrl.io.baseRamBus <> baseRamCtrl.io.bus

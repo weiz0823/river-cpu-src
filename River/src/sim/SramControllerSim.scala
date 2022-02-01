@@ -6,7 +6,7 @@ import config.SramConfig
 
 object SramControllerSim {
   def main(args: Array[String]) {
-    SpinalSimConfig().withWave.compile(new SramController(SramConfig())).doSim {
+    SpinalSimConfig().withWave.compile(new SramController(SramConfig(false))).doSim {
       dut =>
         dut.clockDomain.forkStimulus(period = 2)
 

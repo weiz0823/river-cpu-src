@@ -22,7 +22,7 @@ object CoreTopSim {
         0x530333L, 0xfe729ce3L, 0x652023L, 0x13L, 0x13L, 0x13L)
 
       val instProvider =
-        DataProvider.fromBinary("test_asm/csr.bin", 0x80000000L)
+        DataProvider(0x80000000L, program)
       val dataProvider =
         DataProvider(0x80400000L, Vector.fill(0x10)(0x12345678))
       val timeout = 200

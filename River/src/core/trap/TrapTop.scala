@@ -9,18 +9,29 @@ import spinal.lib.PriorityMux
 
 class TrapTop extends Component {
   val io = new Bundle {
-    val exStall = in(Bool())
-    val except = in(ExceptBundle())
-    val trapRet = in(TrapRetBundle())
-    val pc = in(UInt(32 bits))
     val softInt = in(Bool())
     val timeInt = in(Bool())
     val extInt = in(Bool())
-    val instFlush = in(Bool())
+    val ex = new Bundle {
+      val stall = in(Bool())
+      val except = in(ExceptBundle())
+      val trapRet = in(TrapRetBundle())
+      val pc = in(UInt(32 bits))
+      val instFlush = in(Bool())
+    }
+    val mem = new Bundle {
+      val stall = in(Bool())
+      val except = in(ExceptBundle())
+      val pc = in(UInt(32 bits))
+      val instFlush = in(Bool())
+    }
 
     val trapBranch = out(BranchBundle())
     val privMode = out(PrivilegeEnum())
-    val trapE = out(Bool())
+    val nextPrivMode = out(PrivilegeEnum())
+    val flushEx = out(Bool())
+    val flushMem = out(Bool())
+    val exInstFlush = out(Bool())
 
     val csr = slave(TrapCsrBundle())
   }
@@ -71,6 +82,9 @@ class TrapTop extends Component {
   val mtval = RegInit(U(0, 32 bits))
   val stval = RegInit(U(0, 32 bits))
 
+  val regFlushEx = RegInit(False)
+  val exInstFlush = io.ex.instFlush | regFlushEx
+
   // important values
   val intP = Bits(32 bits)
   // mask out hasInt when stall
@@ -81,16 +95,28 @@ class TrapTop extends Component {
       Array.range(0, 12).map({ f => U(f, 5 bits) })
     )
   // only when pipeline not stalled, instruction is not bubble, can take trap
-  val trapE = (hasInt | io.except.e) & ~io.exStall & ~io.instFlush
-  val trapRetE = io.trapRet.e & ~io.exStall
+  val exTrapE =
+    (hasInt | io.ex.except.e) & ~io.ex.stall & ~exInstFlush
+  val memTrapE = io.mem.except.e & ~io.mem.stall & ~io.mem.instFlush
+  val trapE = exTrapE | memTrapE
+  val trapRetE = io.ex.trapRet.e & ~io.ex.stall & ~exInstFlush
   val trapCause = UInt(32 bits)
   trapCause(31) := hasInt // take interrupt if has interrupt
   trapCause(30 downto 0) := Mux(
     hasInt,
     intTaken.resize(31 bits),
-    io.except.code.asBits.asUInt.resize(31 bits)
+    Mux(
+      memTrapE,
+      io.mem.except.code.asBits.asUInt.resize(31 bits),
+      io.ex.except.code.asBits.asUInt.resize(31 bits)
+    )
   )
-  val trapVal = Mux(hasInt, U(0, 32 bits), io.except.assistVal)
+  val trapVal = Mux(
+    hasInt,
+    U(0, 32 bits),
+    Mux(memTrapE, io.mem.except.assistVal, io.ex.except.assistVal)
+  )
+  val trapPc = Mux(memTrapE, io.mem.pc, io.ex.pc)
   val mdeleg = Mux(trapCause(31), mideleg, medeleg)
   // support trap code 0~31
   val isDeleg = mdeleg(trapCause(4 downto 0))
@@ -105,6 +131,21 @@ class TrapTop extends Component {
     PrivilegeEnum.S -> regGlobalIntE(PrivilegeEnum.S.asBits.asUInt),
     default -> True
   )
+
+  // trap arbitration
+  when(io.ex.stall & memTrapE) {
+    // instruction in EX flushed because MEM takes trap
+    regFlushEx := True
+  }
+  when(~io.ex.stall) {
+    regFlushEx := False
+  }
+  // request to flush EX
+  io.flushEx := trapE
+  // request to flush MEM
+  io.flushMem := memTrapE
+  // provide EX flush information to CSR
+  io.exInstFlush := exInstFlush
 
   // construct mstatus csr
   val mstatus = Bits(32 bits)
@@ -252,14 +293,13 @@ class TrapTop extends Component {
   // output
   io.privMode := regPrivMode
   io.trapBranch.e := trapE | trapRetE
-  io.trapE := trapE
   when(trapE) {
     io.trapBranch.addr := (trapVec(31 downto 2) + trapVec(1 downto 0).mux(
       0 -> 0,
       default -> trapCause(4 downto 0)
     )) @@ U(0, 2 bits)
   }.otherwise {
-    io.trapBranch.addr := io.trapRet.priv.mux(
+    io.trapBranch.addr := io.ex.trapRet.priv.mux(
       PrivilegeEnum.M -> mepc,
       default -> sepc
     )
@@ -273,22 +313,26 @@ class TrapTop extends Component {
     regGlobalIntE(x) := False
     regPrevPriv(x) := regPrivMode
     regPrivMode := trapPriv
+    io.nextPrivMode := trapPriv
 
     when(isDeleg) {
-      sepc := io.pc
+      sepc := trapPc
       scause := trapCause
       stval := trapVal
     }.otherwise {
-      mepc := io.pc
+      mepc := trapPc
       mcause := trapCause
       mtval := trapVal
     }
   }.elsewhen(trapRetE) {
-    val x = io.trapRet.priv.asBits.asUInt
+    val x = io.ex.trapRet.priv.asBits.asUInt
     // xret, pop stack
     regGlobalIntE(x) := regPrevIntE(x)
     regPrevIntE(x) := True
     regPrivMode := regPrevPriv(x)
+    io.nextPrivMode := regPrevPriv(x)
     regPrevPriv(x) := PrivilegeEnum.U
+  } otherwise {
+    io.nextPrivMode := regPrivMode
   }
 }
